@@ -122,3 +122,5 @@ ndis-incident-agent/
 ```bash
 python -m pytest tests/ -q
 ```
+
+CI (`.github/workflows/ci.yml`) runs the test suite plus a demo smoke run on every PR and push to `main` / `vibe/**`.
