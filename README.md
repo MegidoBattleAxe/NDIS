@@ -49,6 +49,8 @@ python -m incident_agent --demo --samples samples
 
 Re-running is safe: already-processed messages are skipped, so the register is never duplicated.
 
+The spreadsheet produced by the demo run is checked in at [examples/incident_register.xlsx](examples/incident_register.xlsx) so you can preview it in the browser. Live registers stay local in `output/` (gitignored - they contain incident data).
+
 ## Live setup against your Outlook
 
 1. **Azure app registration** (Azure Portal > Entra ID > App registrations > New registration):
