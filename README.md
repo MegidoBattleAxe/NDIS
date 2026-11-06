@@ -48,6 +48,9 @@ python -m incident_agent --demo --samples samples
 ```
 
 Re-running is safe: already-processed messages are skipped, so the register is never duplicated.
+If `output/` is deleted while `state.json` remains, the run prints a `WARNING` and logs a
+`register_divergence` event (the register is rebuilt without previously processed rows) -
+restore `output/` or delete `state.json` to reprocess.
 
 The spreadsheet produced by the demo run is checked in at [examples/incident_register.xlsx](examples/incident_register.xlsx) so you can preview it in the browser. Live registers stay local in `output/` (gitignored - they contain incident data).
 

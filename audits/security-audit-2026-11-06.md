@@ -35,3 +35,11 @@ secret-pattern grep over tracked files, live demo smoke runs. Skill used: `/secu
 No Critical findings. Demo mode is safe to run. Before/soon-after live mode: fix the
 High register-divergence issue and the Medium zip-bomb cap; the Low items can ride
 along in a normal PR.
+
+## Remediation status
+
+- High (register/state divergence): **fixed** — `run_once` now warns on stderr and logs
+  `register_divergence` / `register_row_count_mismatch` when the register is missing or
+  its row count disagrees with `state.json` (which now stores `register_row_count`).
+  Covered by `tests/test_register_divergence.py`.
+- Medium (zip-bomb cap) and Low items: open.

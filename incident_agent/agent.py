@@ -1,4 +1,5 @@
 import json
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -72,6 +73,7 @@ class IncidentAgent:
 
     def run_once(self, demo_files=None):
         state = self._load_state()
+        prior_processed = len(state["processed_message_ids"])
         processed = set(state["processed_message_ids"])
         since = state["last_received"] or since_iso(self.cfg.lookback_days)
 
@@ -125,10 +127,14 @@ class IncidentAgent:
         stats["rows"] = len(all_rows)
 
         register_path = self.cfg.output_dir / REGISTER_NAME
-        rows = self._merged_rows(register_path, all_rows)
+        existing_rows = self._load_register_rows(register_path)
+        self._warn_if_register_diverged(register_path, existing_rows, prior_processed, state.get("register_row_count"))
+        rows = self._merge_rows(existing_rows, all_rows)
         write_register(rows, register_path, self.cfg.org_name)
         stats["total_in_register"] = len(rows)
         stats["register"] = str(register_path)
+        state["register_row_count"] = len(rows)
+        self._save_state(state)
         if self.export_csv:
             csv_path = self.cfg.output_dir / REGISTER_CSV_NAME
             write_register_csv(rows, csv_path)
@@ -140,9 +146,29 @@ class IncidentAgent:
     def _dedup_key(row):
         return f"{row.get('source_file', '')}|{row.get('incident_date', '')}|{str(row.get('description', ''))[:120]}"
 
-    def _merged_rows(self, register_path, new_rows):
+    def _warn_if_register_diverged(self, register_path, existing_rows, prior_processed, stored_row_count):
+        if prior_processed and not Path(register_path).exists():
+            self._log({"event": "register_divergence", "processed_message_ids": prior_processed, "register": str(register_path)})
+            print(
+                f"WARNING: register {register_path} is missing but state has {prior_processed} previously processed messages; "
+                "rebuilding register without them - restore output/ or delete state.json to reprocess",
+                file=sys.stderr,
+            )
+        if stored_row_count is not None and Path(register_path).exists() and len(existing_rows) != stored_row_count:
+            self._log({
+                "event": "register_row_count_mismatch",
+                "register_rows": len(existing_rows),
+                "state_rows": stored_row_count,
+                "register": str(register_path),
+            })
+            print(
+                f"WARNING: register {register_path} has {len(existing_rows)} rows but state recorded {stored_row_count}",
+                file=sys.stderr,
+            )
+
+    def _merge_rows(self, existing_rows, new_rows):
         merged = {}
-        for existing in self._load_register_rows(register_path):
+        for existing in existing_rows:
             merged[self._dedup_key(existing)] = existing
         for row in new_rows:
             merged[self._dedup_key(row)] = row
