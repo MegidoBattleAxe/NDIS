@@ -1,3 +1,4 @@
+import csv
 from datetime import datetime
 
 from openpyxl import Workbook
@@ -36,6 +37,18 @@ def _sort_key(row):
     return (rank, -ts)
 
 
+def _row_values(row):
+    return [
+        row.get("incident_date", ""), row.get("received", ""), row.get("subject", ""),
+        row.get("source_file", ""), row.get("participant", ""), row.get("location", ""),
+        row.get("incident_type", ""), row.get("ndis_category") or "", row.get("description", ""),
+        row.get("injuries", ""), row.get("actions_taken", ""), row.get("reported_by", ""),
+        row["severity"].capitalize(), "YES" if row["reportable"] else "No",
+        (f"{row['report_window_hours']}h" if row["reportable"] else ""),
+        row.get("report_deadline", "") or "", row.get("status", "Open"),
+    ]
+
+
 def build_workbook(rows, org_name):
     wb = Workbook()
     ws = wb.active
@@ -50,15 +63,7 @@ def build_workbook(rows, org_name):
         ws.column_dimensions[get_column_letter(col)].width = WIDTHS[col - 1]
 
     for r, row in enumerate(sorted(rows, key=_sort_key), start=2):
-        values = [
-            row.get("incident_date", ""), row.get("received", ""), row.get("subject", ""),
-            row.get("source_file", ""), row.get("participant", ""), row.get("location", ""),
-            row.get("incident_type", ""), row.get("ndis_category") or "", row.get("description", ""),
-            row.get("injuries", ""), row.get("actions_taken", ""), row.get("reported_by", ""),
-            row["severity"].capitalize(), "YES" if row["reportable"] else "No",
-            (f"{row['report_window_hours']}h" if row["reportable"] else ""),
-            row.get("report_deadline", "") or "", row.get("status", "Open"),
-        ]
+        values = _row_values(row)
         for col, value in enumerate(values, start=1):
             cell = ws.cell(row=r, column=col, value=value)
             cell.border = THIN
@@ -105,4 +110,13 @@ def build_workbook(rows, org_name):
 def write_register(rows, path, org_name):
     wb = build_workbook(rows, org_name)
     wb.save(path)
+    return path
+
+
+def write_register_csv(rows, path):
+    with open(path, "w", newline="", encoding="utf-8") as fh:
+        writer = csv.writer(fh)
+        writer.writerow(HEADERS)
+        for row in sorted(rows, key=_sort_key):
+            writer.writerow(_row_values(row))
     return path

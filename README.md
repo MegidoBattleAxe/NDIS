@@ -71,6 +71,7 @@ The spreadsheet produced by the demo run is checked in at [examples/incident_reg
 ```bash
 python -m incident_agent --env config.env                    # one scan
 python -m incident_agent --env config.env --interval 300     # scan every 5 minutes
+python -m incident_agent --env config.env --export-csv       # also write output/incident_register.csv
 # or via cron (every 5 minutes):
 # */5 * * * * cd /path/to/ndis-incident-agent && /path/to/venv/bin/python -m incident_agent --env config.env >> output/cron.log 2>&1
 ```

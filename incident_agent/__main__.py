@@ -17,6 +17,7 @@ def main(argv=None):
     parser.add_argument("--demo", action="store_true", help="run offline against ./samples instead of Outlook")
     parser.add_argument("--samples", default="samples", help="directory of sample form files for --demo")
     parser.add_argument("--interval", type=int, default=None, help="poll every N seconds instead of running once")
+    parser.add_argument("--export-csv", action="store_true", help="also write output/incident_register.csv on each run")
     args = parser.parse_args(argv)
 
     cfg = Config.from_env(args.env, require_live=not args.demo)
@@ -29,7 +30,7 @@ def main(argv=None):
     else:
         demo_files = None
 
-    agent = build_agent(cfg, demo=args.demo)
+    agent = build_agent(cfg, demo=args.demo, export_csv=args.export_csv)
 
     def run():
         stats = agent.run_once(demo_files=demo_files)
@@ -38,6 +39,8 @@ def main(argv=None):
             f"{stats['rows']} new rows, register now holds {stats['total_in_register']} incidents "
             f"-> {stats['register']}"
         )
+        if stats.get("csv_register"):
+            print(f"csv export -> {stats['csv_register']}")
         for a in stats["attachments"]:
             if a["status"] != "processed":
                 print(f"  {a['status']}: {a['file']} ({a.get('reason', '')})")

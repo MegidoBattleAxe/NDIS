@@ -6,15 +6,17 @@ from .classify import classify, parse_received
 from .graph_client import GraphClient, since_iso
 from .parsers import parse_attachment
 from .safety import store_attachment, validate_attachment
-from .spreadsheet import write_register
+from .spreadsheet import write_register, write_register_csv
 
 REGISTER_NAME = "incident_register.xlsx"
+REGISTER_CSV_NAME = "incident_register.csv"
 
 
 class IncidentAgent:
-    def __init__(self, cfg, client=None):
+    def __init__(self, cfg, client=None, export_csv=False):
         self.cfg = cfg
         self.client = client
+        self.export_csv = export_csv
         self.cfg.ensure_dirs()
 
     def _load_state(self):
@@ -127,6 +129,10 @@ class IncidentAgent:
         write_register(rows, register_path, self.cfg.org_name)
         stats["total_in_register"] = len(rows)
         stats["register"] = str(register_path)
+        if self.export_csv:
+            csv_path = self.cfg.output_dir / REGISTER_CSV_NAME
+            write_register_csv(rows, csv_path)
+            stats["csv_register"] = str(csv_path)
         self._log({"event": "run_complete", **{k: v for k, v in stats.items() if k != "attachments"}})
         return stats
 
@@ -191,6 +197,6 @@ def _parse_window(value):
     return int(digits) if digits else None
 
 
-def build_agent(cfg, demo=False):
+def build_agent(cfg, demo=False, export_csv=False):
     client = None if demo else GraphClient(cfg)
-    return IncidentAgent(cfg, client)
+    return IncidentAgent(cfg, client, export_csv=export_csv)
