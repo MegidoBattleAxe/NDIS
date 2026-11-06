@@ -261,27 +261,31 @@ def extract_file_id(link_or_id: str) -> str:
 async def _drive_call(tool_name: str, arguments: dict[str, Any]) -> Any:
     from mistralai.workflows.client import get_mistral_client
 
-    try:
-        client = get_mistral_client(use_executor_credentials=True)
-        resp = await client.beta.connectors.call_tool_async(
-            connector_id_or_name=DRIVE_CONNECTOR_NAME,
-            tool_name=tool_name,
-            arguments=arguments,
-        )
-    except agents.ToolError:
-        raise
-    except Exception as e:
-        raise agents.ToolError(
-            f"Google Drive call {tool_name!r} failed ({type(e).__name__}). "
-            "Make sure the Google Drive connector is connected for this user at "
-            "console.mistral.ai/build/connectors, then try again."
-        ) from e
-    texts = [t for t in (getattr(b, "text", None) for b in (resp.content or [])) if t]
-    blob = "\n".join(texts)
-    try:
-        return json.loads(blob)
-    except (json.JSONDecodeError, TypeError):
-        return blob
+    errors: list[str] = []
+    for use_executor in (True, False):
+        try:
+            client = get_mistral_client(use_executor_credentials=use_executor)
+            resp = await client.beta.connectors.call_tool_async(
+                connector_id_or_name=DRIVE_CONNECTOR_NAME,
+                tool_name=tool_name,
+                arguments=arguments,
+            )
+        except agents.ToolError:
+            raise
+        except Exception as e:
+            errors.append(type(e).__name__)
+            continue
+        texts = [t for t in (getattr(b, "text", None) for b in (resp.content or [])) if t]
+        blob = "\n".join(texts)
+        try:
+            return json.loads(blob)
+        except (json.JSONDecodeError, TypeError):
+            return blob
+    raise agents.ToolError(
+        f"Google Drive call {tool_name!r} failed ({', '.join(errors) or 'unknown error'}). "
+        "Make sure the Google Drive connector is connected for this user at "
+        "console.mistral.ai/build/connectors, then try again."
+    )
 
 
 async def _load_dataset(ctx: agents.ToolCallbackContext, link_or_id: str) -> tuple[str, Dataset, dict[str, Any]]:
@@ -506,7 +510,7 @@ Tools:
 How to work:
 1. If the user gives a Drive link or file id, call load_csv_from_drive with it. If they only name the file, call search_drive_files first, then load the matching file.
 2. Remember the file_id and link for the whole conversation and reuse them in every later tool call (pass file_id, or omit it when only one dataset is loaded). Never ask the user to repeat the link. If a tool reports that the dataset is not loaded (for example after a worker restart), call load_csv_from_drive again with the remembered link or file id.
-3. Before answering, call describe_columns, and preview_rows when you need concrete values, so you use the real column names. Compute answers with filter_rows and group_by_aggregate, chaining calls when needed (e.g. filter, then aggregate the filtered rows with filters=).
+3. Never compute numbers yourself from raw CSV text, and do not call the google_drive_mcp connector tools directly: retrieve files only with search_drive_files / load_csv_from_drive, and analyze only with describe_columns, preview_rows, filter_rows and group_by_aggregate. If load_csv_from_drive fails, report the exact tool error to the user instead of improvising. Before answering, call describe_columns, and preview_rows when you need concrete values, so you use the real column names. Compute answers with filter_rows and group_by_aggregate, chaining calls when needed (e.g. filter, then aggregate the filtered rows with filters=).
 4. Reply concisely in Markdown: restate the question briefly, give the numbers (a small table when helpful), and name the file and columns they come from. If the tools cannot answer something, say exactly what is missing instead of guessing.
 5. Follow-up questions refer to the same loaded file unless the user says otherwise. If the user shares a new link, load it and use that dataset from then on.
 """
