@@ -47,4 +47,11 @@ along in a normal PR.
   and rejects corrupt archives. Covered by `tests/test_safety.py`. Residual risk:
   a lying zip header is still caught only by the declared sizes, not by streaming limits
   inside openpyxl.
-- Low items: open.
+- Low (OData `$filter` encoding): **fixed** — sender is OData-quote-escaped and the query
+  is percent-encoded in the request URL (`graph_client.py`); the in-code exact sender
+  match remains the real control. Covered by `tests/test_graph_client.py`.
+- Low (token cache permissions window): **fixed** — `_save_cache` creates the file with
+  `0600` via `os.open` and still tightens pre-existing files. Covered by
+  `tests/test_graph_client.py`.
+
+All findings from this audit are now fixed.

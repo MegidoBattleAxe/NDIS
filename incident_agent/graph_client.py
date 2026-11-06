@@ -1,4 +1,5 @@
 import json
+import os
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -37,7 +38,9 @@ class GraphClient:
 
     def _save_cache(self, data):
         path = Path(self.cfg.token_cache)
-        path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(json.dumps(data, indent=2))
         try:
             path.chmod(0o600)
         except OSError:
@@ -156,7 +159,8 @@ class GraphClient:
 
     def list_messages_from_sender(self, sender, since=None, top=100):
         mailbox = quote(self.cfg.mailbox, safe="@.")
-        filters = [f"from/emailAddress/address eq '{sender.lower()}'", "hasAttachments eq true"]
+        sender_literal = sender.lower().replace("'", "''")
+        filters = [f"from/emailAddress/address eq '{sender_literal}'", "hasAttachments eq true"]
         if since:
             filters.append(f"receivedDateTime ge {since}")
         query = (
@@ -164,7 +168,7 @@ class GraphClient:
             "&$select=id,subject,receivedDateTime,from,hasAttachments"
             f"&$orderby=receivedDateTime desc&$top={top}"
         )
-        url = f"{GRAPH}/users/{mailbox}/messages?{query}"
+        url = f"{GRAPH}/users/{mailbox}/messages?{quote(query, safe='=&$,/():@')}"
         return list(self._paged(url))
 
     def list_attachments(self, message_id):
