@@ -104,7 +104,9 @@ step you remain responsible for.
   exact (case-insensitive) sender match on top of the Graph query filter, but you should still
   confirm the domain.
 - Only allowlisted file types are parsed, content is magic-byte checked, capped at 25 MB, and
-  stored unopened in `downloads/`. Inline/signature images are skipped. Rejected files are
+  stored unopened in `downloads/`. Zip-based formats (docx/xlsx) are additionally rejected if
+  they declare more than 10x the size cap uncompressed (zip-bomb guard), and corrupt archives
+  are rejected. Inline/signature images are skipped. Rejected files are
   logged in `output/run_log.jsonl`.
 - `.token_cache.json` and any `config.env` contain credentials - keep them out of version control
   (the token file is written with `0600` permissions).

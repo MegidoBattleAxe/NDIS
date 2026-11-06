@@ -1,4 +1,15 @@
+import io
+import zipfile
+
 from incident_agent.safety import store_attachment, validate_attachment
+
+
+def _make_zip(members):
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for name, data in members:
+            zf.writestr(name, data)
+    return buf.getvalue()
 
 
 def test_accepts_valid_pdf():
@@ -7,8 +18,21 @@ def test_accepts_valid_pdf():
 
 
 def test_accepts_valid_docx_zip():
-    ok, reason = validate_attachment("form.docx", b"PK\x03\x04rest", 1024)
+    ok, reason = validate_attachment("form.docx", _make_zip([("word/document.xml", b"<doc/>")]), 1024)
     assert ok, reason
+
+
+def test_rejects_corrupt_zip():
+    ok, reason = validate_attachment("form.docx", b"PK\x03\x04rest", 1024 * 1024)
+    assert not ok
+    assert "corrupt" in reason
+
+
+def test_rejects_zip_bomb():
+    bomb = _make_zip([("word/document.xml", b"<doc/>" + b"0" * 20000)])
+    ok, reason = validate_attachment("form.docx", bomb, 1024)
+    assert not ok
+    assert "uncompressed" in reason
 
 
 def test_accepts_text():

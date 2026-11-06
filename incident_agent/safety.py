@@ -1,6 +1,10 @@
 import hashlib
+import io
 import re
+import zipfile
 from pathlib import Path
+
+ARCHIVE_EXPANSION_LIMIT = 10
 
 ALLOWED_EXTENSIONS = {
     ".pdf", ".docx", ".xlsx", ".csv", ".txt", ".json",
@@ -15,6 +19,14 @@ _PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
 _JPG_MAGIC = b"\xff\xd8\xff"
 
 _SAFE_NAME = re.compile(r"[^A-Za-z0-9._-]+")
+
+
+def archive_declared_bytes(data):
+    try:
+        with zipfile.ZipFile(io.BytesIO(data)) as zf:
+            return sum(info.file_size for info in zf.infolist())
+    except (zipfile.BadZipFile, OSError, ValueError):
+        return None
 
 
 def sniff_kind(data):
@@ -57,6 +69,13 @@ def validate_attachment(name, data, max_bytes):
     }[ext]
     if kind not in expected:
         return False, f"content does not match extension {ext} (sniffed {kind})"
+    if kind == ".zip":
+        declared = archive_declared_bytes(data)
+        if declared is None:
+            return False, "corrupt zip archive"
+        limit = max_bytes * ARCHIVE_EXPANSION_LIMIT
+        if declared > limit:
+            return False, f"archive declares {declared} uncompressed bytes, exceeds limit {limit}"
     return True, "ok"
 
 

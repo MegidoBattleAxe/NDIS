@@ -42,4 +42,9 @@ along in a normal PR.
   `register_divergence` / `register_row_count_mismatch` when the register is missing or
   its row count disagrees with `state.json` (which now stores `register_row_count`).
   Covered by `tests/test_register_divergence.py`.
-- Medium (zip-bomb cap) and Low items: open.
+- Medium (zip-bomb): **fixed** — `validate_attachment` now rejects zip-based attachments
+  whose declared uncompressed size exceeds `max_bytes * ARCHIVE_EXPANSION_LIMIT` (10x),
+  and rejects corrupt archives. Covered by `tests/test_safety.py`. Residual risk:
+  a lying zip header is still caught only by the declared sizes, not by streaming limits
+  inside openpyxl.
+- Low items: open.
