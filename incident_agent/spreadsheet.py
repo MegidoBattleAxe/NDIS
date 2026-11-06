@@ -4,7 +4,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
-from .classify import SEVERITY_RANK
+from .classify import SEVERITY_RANK, parse_received
 
 HEADERS = [
     "Incident Date", "Received", "Email Subject", "Source File", "Participant",
@@ -30,7 +30,10 @@ WRAP = Alignment(wrap_text=True, vertical="top")
 
 
 def _sort_key(row):
-    return (-SEVERITY_RANK.get(row["severity"].lower(), 0), str(row.get("incident_date", "")))
+    rank = -SEVERITY_RANK.get(row["severity"].lower(), 0)
+    parsed = parse_received(row.get("incident_date", ""))
+    ts = parsed.timestamp() if parsed else 0.0
+    return (rank, -ts)
 
 
 def build_workbook(rows, org_name):
