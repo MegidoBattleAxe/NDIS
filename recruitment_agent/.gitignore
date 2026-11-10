@@ -1,0 +1,5 @@
+.env
+__pycache__/
+*.py[cod]
+candidate_results.json
+.pytest_cache/
